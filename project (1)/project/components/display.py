@@ -8,7 +8,7 @@ class Number(tk.Label):
             self,
             parent,
             fg="#3D3D3D",
-            bg="#A6B8A2",
+            bg="#b9e2eb",
             font=("DS-Digital", 10, "bold"),
             *args,
             **kwargs
@@ -22,7 +22,7 @@ class Display(tk.Frame):
         tk.Frame(self, bg="#8A9986", height=5).pack(fill="x")
 
         # Basket screen numbers
-        self.basketFrame = tk.Frame(self, bg="#A6B8A2")
+        self.basketFrame = tk.Frame(self, bg="#b9e2eb")
         self.basketFrame.pack(fill="x")
         Number(self.basketFrame, text="Cart:").pack(side="left", anchor="w", padx=(4, 0))
         Number(self.basketFrame, textvariable=c.cart).pack(side="left", anchor="e")
@@ -34,7 +34,7 @@ class Display(tk.Frame):
         self.indicator = tk.Label(
             self,
             fg="#3D3D3D",
-            bg="#A6B8A2",
+            bg="#b9e2eb",
             font=("DS-Digital", 15, "bold"),
             textvariable=c.screenMessage,
             justify="center",
