@@ -65,7 +65,7 @@ class Controller(tk.Tk):
         self.locked = False
 
         # Start with a welcome message
-        typerwriter(self, ["Welcome to the\nvending machine"])
+        typerwriter(self, ["Welcome!"])
 
         for product in productDB.all():
             try:
@@ -97,10 +97,10 @@ class Controller(tk.Tk):
                     print(f"Failed to load product {product['name']} even with default image: {e}")
 
         self.productList = ProductList(self.container, self)
-        self.productList.pack(side="right", expand=1, fill="both", padx=(0, 4))
+        self.productList.pack(side="left", expand=1, fill="both", padx=(0, 4))
 
         self.display = tk.Frame(self.container, bg="white")
-        self.display.pack(side="left", expand=1, fill="both", padx=(4, 0))
+        self.display.pack(side="right", expand=1, fill="both", padx=(4, 0))
 
         self.keypad = Keypad(
             self.display,
