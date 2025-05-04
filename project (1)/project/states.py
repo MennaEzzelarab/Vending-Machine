@@ -1,0 +1,6 @@
+# States
+CODE = 1
+AMOUNT = 2
+CONFIRM = 3
+PAY_CASH = 4
+PAYMENT = 5
