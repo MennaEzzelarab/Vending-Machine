@@ -42,14 +42,11 @@ def processCode(c, code):
             args=(c, "Invalid Code"),
         ).start()
 
-
 def lockerWrapper(func):
     def checkIfLocked(controller, *args, **kwargs):
         if not controller.locked:
             func(controller, *args, **kwargs)
-
     return checkIfLocked
-
 
 @lockerWrapper
 def pressKey(c, button):
@@ -68,61 +65,50 @@ def pressKey(c, button):
             c.screenMessage.set("Enter Item Code")
             c.state = states.CODE
         c.toggleLock(False)
-
     else:
-        print("Elsing")
         previous = c.screenMessage.get()
         messages = (
             "Enter Item Code",
             "Enter Amount",
             f"Enter cash manually\nLE {str(charge)}",
         )
-        print(f"Enter cash manually\nLE {str(charge)}")
-        print(c.screenMessage.get())
         if previous in messages:
             c.screenMessage.set(button)
         else:
-            # For cash input, build up the number
             if c.state == states.PAY_CASH:
-                # If we have a prompt message, start fresh with the button
                 if "Enter cash manually" in previous:
                     c.screenMessage.set(button)
                 else:
-                    # Otherwise append to existing number
                     c.screenMessage.set(previous + button)
             else:
                 c.screenMessage.set((previous + button))
 
 def getButtonColor(button):
     if button == "CLR":
-        return "#C73B2D"
+        return "#FF6B6B"  # Softer, smoother red for CLR
     else:
-        return "#0d1137"
-
+        return "#3A3F5E"  # Smoother blue-gray for number buttons
 
 def getButtonHover(button):
     if button == "CLR":
-        return "#C73B2D"
+        return "#FF8787"  # Lighter red on hover
     else:
-        return "#393E42"
-
+        return "#565B7F"  # Lighter blue-gray on hover
 
 def errorMessageResolver(c, message):
     subtotal = c.subtotal.get()
     charge = round(subtotal, 2)
     blink(c, message)
     if c.state == states.CODE:
-        print("Enter code state")
         c.screenMessage.set("Enter Item Code")
     if c.state == states.AMOUNT:
         c.screenMessage.set("Enter Amount")
     if c.state == states.PAY_CASH:
         c.screenMessage.set(f"Enter cash manually\nLE {str(charge)}")
 
-
 class Keypad(tk.Frame):
     def __init__(self, parent, c):
-        tk.Frame.__init__(self, parent, bg="white")
+        tk.Frame.__init__(self, parent, bg="#EDEFF5")  # Smoother light gray background
         self.code = ""
         self.buttons = [
             ["1", "2", "3"],
@@ -132,11 +118,13 @@ class Keypad(tk.Frame):
         ]
         self.products = c.products
 
-        Display(self, c).pack(fill="x")
+        # Display with vertical padding
+        Display(self, c).pack(fill="x", pady=10)
 
-        self.calculatorView = tk.Frame(self)
-        self.calculatorGrid = tk.Frame(self.calculatorView)
-        self.calculatorView.pack()
+        # Frame for calculator buttons
+        self.calculatorView = tk.Frame(self, bg="#EDEFF5")
+        self.calculatorGrid = tk.Frame(self.calculatorView, bg="#EDEFF5")
+        self.calculatorView.pack(pady=8)
         self.calculatorGrid.grid()
 
         config = {
@@ -160,7 +148,6 @@ class Keypad(tk.Frame):
             if c.state == states.CODE:
                 code = c.screenMessage.get()
                 try:
-                    # Convert code to integer and check if it's a valid product index
                     code_int = int(code)
                     if 1 <= code_int <= len(c.products):
                         self.code = code
@@ -173,10 +160,7 @@ class Keypad(tk.Frame):
                     print(f"Invalid product code: {code}")
                     threading.Thread(
                         target=errorMessageResolver,
-                        args=(
-                            c,
-                            "Invalid Code",
-                        ),
+                        args=(c, "Invalid Code"),
                     ).start()
 
             # ***** state 2: AMOUNT *****
@@ -186,18 +170,12 @@ class Keypad(tk.Frame):
                     c.setAmount(int(amount))
                     threading.Thread(
                         target=processCode,
-                        args=(
-                            c,
-                            self.code,
-                        ),
+                        args=(c, self.code),
                     ).start()
                 else:
                     threading.Thread(
                         target=errorMessageResolver,
-                        args=(
-                            c,
-                            "Invalid Amount",
-                        ),
+                        args=(c, "Invalid Amount"),
                     ).start()
 
             elif c.state == states.CONFIRM:
@@ -210,14 +188,12 @@ class Keypad(tk.Frame):
                             )
                             c.updateSubtotal(previous * -1)
                             c.updateSubtotal(c.selected.price.get() * c.amount)
-
                             previousCart = c.basket[c.selected.id]["amount"]
                             c.cart.set((c.cart.get() - previousCart) + c.amount)
                     except KeyError:
                         c.updateSubtotal(c.selected.price.get() * c.amount)
                         c.cart.set(c.cart.get() + c.amount)
 
-                    # Add product to basket
                     c.basket[c.selected.id] = {
                         "id": c.selected.id,
                         "name": c.selected.name.get(),
@@ -225,21 +201,14 @@ class Keypad(tk.Frame):
                         "quantity": c.selected.quantity.get(),
                         "amount": c.amount,
                     }
-
-                    # Reset amount for next purchase
                     c.setAmount(0)
                     cartWindow(config)
                     c.screenMessage.set("Enter Item Code")
-
                     c.toggleLock(False)
                 else:
-                    # When there is insufficient inventory, display an out of stock message
                     threading.Thread(
                         target=errorMessageResolver,
-                        args=(
-                            c,
-                            "Out of Stock",
-                        ),
+                        args=(c, "Out of Stock"),
                     ).start()
                     c.toggleLock(False)
                 c.state = states.CODE
@@ -247,31 +216,23 @@ class Keypad(tk.Frame):
             elif c.state == states.PAY_CASH:
                 c.toggleLock(True)
                 cash = c.screenMessage.get()
-                print(f"The cash {cash}")
                 try:
-                    print("Trying")
-                    # For cash input, we just need to convert the entered number
                     cash_amount = float(cash)
                     if cash_amount < c.subtotal.get():
                         raise ValueError("Insufficient cash amount")
                     success = finishAndPay(c, cash_amount, "cash")
-                    print(f"Finished trying {success}")
-                    if success:
-                        print("Success")
-                    else:
+                    if not success:
                         raise Exception("Invalid cash")
                 except Exception as e:
-                    print(f"Errorrr {e}")
+                    print(f"Error: {e}")
                     threading.Thread(
                         target=errorMessageResolver,
-                        args=(
-                            c,
-                            "Invalid Cash",
-                        ),
+                        args=(c, "Invalid Cash"),
                     ).start()
             elif c.state == states.PAYMENT:
                 print("Payment in process")
-        
+
+        # Create smaller, smoother keypad buttons
         for row in range(len(self.buttons)):
             for col in range(3):
                 button = self.buttons[row][col]
@@ -279,29 +240,34 @@ class Keypad(tk.Frame):
                     self.calculatorGrid,
                     command=partial(pressKey, c, button),
                     bg=getButtonColor(button),
-                    fg="#D8D0C5",
-                    font=("DS-Digital", 16, "bold"),
+                    fg="#FFFFFF",
+                    font=("Helvetica", 14, "bold"),  # Sleeker, smaller font
                     activebackground=getButtonHover(button),
-                    activeforeground="#D8D0C5",
+                    activeforeground="#FFFFFF",
                     state="disabled" if button == "" else "normal",
-                    width=3,
-                    height=2,
+                    width=3,  # Smaller width
+                    height=1,  # Smaller height
                     text=button,
-                    cursor="arrow" if button == "" else "hand1",
-                    padx=10,
-                    pady=4,
-                ).grid(row=row, column=col, sticky="news")
+                    cursor="arrow" if button == "" else "hand2",
+                    padx=8,  # Reduced padding
+                    pady=8,
+                    relief="flat",
+                    borderwidth=1,  # Subtle border for smoothness
+                ).grid(row=row, column=col, sticky="news", padx=6, pady=6)  # Tighter grid spacing
 
+        # Next button with smooth, slightly smaller styling
         self.calculator_button = tk.Button(
             self,
-            cursor="hand1",
+            cursor="hand2",
             command=partial(onSubmit, c),
-            bg="#22bf2f",
-            font=("Helvetica", 10, "bold"),
-            activebackground="#DD5D1D",
-            activeforeground="white",
+            bg="#1A73E8",  # Smoother blue
+            font=("Helvetica", 12, "bold"),  # Sleeker, smaller font
+            activebackground="#1557B0",  # Smoother hover
+            activeforeground="#FFFFFF",
             text="Next",
-            height=2,
-            fg="white",
+            height=1,  # Smaller height
+            fg="#FFFFFF",
+            relief="flat",
+            borderwidth=1,
         )
-        self.calculator_button.pack(fill="x")
+        self.calculator_button.pack(fill="x", pady=12, padx=8)  # Slightly reduced padding
