@@ -7,7 +7,7 @@ from tinydb import TinyDB
 import tkinter as tk
 from functools import partial
 from windows.login import loginWindow
-from PIL import Image, ImageDraw
+from PIL import Image, ImageTk, ImageDraw
 import os
 
 class Toolbar:
@@ -24,7 +24,6 @@ class Toolbar:
             activebackground="#463A87",
         ).pack(fill="x", pady=(0, 4))
 
-
 productDB = TinyDB("database/product.json")
 
 # Ensure required directories exist
@@ -37,7 +36,6 @@ if not os.path.exists(DEFAULT_IMAGE):
     d = ImageDraw.Draw(img)
     d.text((10, 40), "Product", fill='white')
     img.save(DEFAULT_IMAGE)
-
 
 class Controller(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -54,8 +52,18 @@ class Controller(tk.Tk):
         self.basket = {}
         self.state = states.CODE
 
+        # Load and resize the lock.png image for chartImage
+        icon_size = (24, 24)  # Desired size for the icon
+        try:
+            image = Image.open("assets/icons/lock.png")
+            image = image.resize(icon_size, Image.LANCZOS)  # High-quality resizing
+            self.chartImage = ImageTk.PhotoImage(image)
+        except FileNotFoundError:
+            print("Error: lock.png not found in assets/icons/")
+            self.chartImage = None  # Fallback to no image
+
+        # Load other images without resizing
         self.coin = tk.PhotoImage(file="assets/icons/coin.png")
-        self.chartImage = tk.PhotoImage(file="assets/icons/chart.png")
         self.productImage = tk.PhotoImage(file="assets/icons/product.png")
 
         self.cart = tk.IntVar(self.container, 0)

@@ -17,7 +17,7 @@ class Number(tk.Label):
 
 class Display(tk.Frame):
     def __init__(self, parent, c):
-        tk.Frame.__init__(self, parent, bg="#373C40", padx=8, pady=8)
+        tk.Frame.__init__(self, parent, bg="#373C40", padx=8, pady=8) #lcd screen frame
         # Screen shadow
         tk.Frame(self, bg="#8A9986", height=5).pack(fill="x")
 
