@@ -15,14 +15,88 @@ class Toolbar:
         self.container = tk.Frame(parent, height=20, bg="white")
         self.container.pack(pady=(8, 0), padx=8, fill="x")
 
+        # Add tray canvas that fills x and lets us center the tray inside it
+        self.tray_canvas = tk.Canvas(self.container, height=50, bg="white", highlightthickness=0)
+        self.tray_canvas.pack(fill="x", pady=(0, 4))
+
+        # Tray dimensions
+        self.tray_width = 200
+        self.tray_height = 36
+
+        # Store controller for tray status
+        self.controller = c
+
+        # Delay drawing until layout is finalized
+        self.tray_canvas.bind("<Configure>", self.draw_tray)
+
         ToolbarButton(
             self.container,
             text="Admin",
             command=partial(loginWindow, parent, c),
             image=c.chartImage,
-            bg="#8A7BD9",
+            bg="#8a0303",
             activebackground="#463A87",
         ).pack(fill="x", pady=(0, 4))
+
+    def draw_tray(self, event=None):
+        self.tray_canvas.delete("tray")  # Clear previous drawing
+
+        canvas_width = self.tray_canvas.winfo_width()
+        x0 = (canvas_width - self.tray_width) // 2
+        x1 = x0 + self.tray_width
+
+        self.tray_canvas.create_rectangle(
+            x0, 7, x1, 7 + self.tray_height,
+            fill="#3E3E3E",
+            outline="#C0C0C0",
+            width=2,
+            tags="tray"
+        )
+
+        self.tray_canvas.create_text(
+            (x0 + x1) / 2, 7 + self.tray_height / 2,
+            text="Delivery Tray",
+            font=("Helvetica", 9, "bold"),
+            fill="#FFFFFF",
+            tags="tray"
+        )
+
+        # Make tray clickable
+        self.tray_canvas.tag_bind("tray", "<Button-1>", lambda event: self.open_tray_window())
+
+    def open_tray_window(self):
+        # Create a new Toplevel window
+        tray_window = tk.Toplevel(self.container)
+        tray_window.title("Delivery Tray Status")
+        tray_window.geometry("200x150")
+        tray_window.configure(bg="white")
+
+        # Determine tray status message
+        status_message = "Tray empty" if self.controller.tray_status == "empty" else "Item delivered!"
+
+        # Display status
+        tk.Label(
+            tray_window,
+            text=status_message,
+            font=("Helvetica", 12, "bold"),
+            bg="white",
+            fg="#3E3E3E"
+        ).pack(pady=20)
+
+        # Close button
+        tk.Button(
+            tray_window,
+            text="Close",
+            command=tray_window.destroy,
+            bg="#8a0303",
+            fg="white",
+            font=("Helvetica", 10),
+            activebackground="#463A87"
+        ).pack(pady=10)
+
+        # Reset tray status to empty after checking
+        if self.controller.tray_status == "delivered":
+            self.controller.tray_status = "empty"
 
 productDB = TinyDB("database/product.json")
 
@@ -51,6 +125,7 @@ class Controller(tk.Tk):
         self.subtotal = tk.DoubleVar(self.container, 0)
         self.basket = {}
         self.state = states.CODE
+        self.tray_status = "empty"  # Initialize tray status
 
         # Load and resize the lock.png image for chartImage
         icon_size = (24, 24)  # Desired size for the icon
@@ -65,6 +140,7 @@ class Controller(tk.Tk):
         # Load other images without resizing
         self.coin = tk.PhotoImage(file="assets/icons/coin.png")
         self.productImage = tk.PhotoImage(file="assets/icons/product.png")
+        self.inventory = tk.PhotoImage(file="assets/icons/chart.png")
 
         self.cart = tk.IntVar(self.container, 0)
 
