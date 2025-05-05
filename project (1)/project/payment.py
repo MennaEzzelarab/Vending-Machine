@@ -30,7 +30,7 @@ def processPayment(c, newBalance, paymentMethod):
 
 
 def finishAndPay(c, balance, paymentMethod):
-    print("Entered")
+    print("Entered finishAndPay")
     subtotal = c.subtotal.get()
 
     temp_dic = {
@@ -61,6 +61,27 @@ def finishAndPay(c, balance, paymentMethod):
                 "products": productDB.all(),
             }
             response = data
+
+            # Prepare items for tray
+            items = []
+            for item_id, item in cart.items():
+                tray_item = {
+                    "name": item["name"],
+                    "amount": item["amount"],
+                    "price": item["price"]
+                }
+                items.append(tray_item)
+                print(f"Prepared item for tray: {tray_item}")
+            
+            # Add items to tray using TrayManager
+            c.tray_manager.add_items(items)
+            print(f"Added items to tray: {items}")
+            
+            # Force redraw tray
+            c.toolbar.draw_tray()
+            
+            # Trigger tray animation
+            c.toolbar.animate_tray()
 
             c.basket = {}
             c.subtotal.set(0)

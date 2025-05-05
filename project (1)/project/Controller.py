@@ -1,6 +1,7 @@
 from components.Toolbar import ToolbarButton
 from components.product import ProductList, ProductItem
 from components.keypad import Keypad
+from components.tray import TrayManager
 from lcd import typerwriter
 import states as states
 from tinydb import TinyDB
@@ -15,6 +16,10 @@ class Toolbar:
         self.container = tk.Frame(parent, height=20, bg="white")
         self.container.pack(pady=(8, 0), padx=8, fill="x")
 
+        # Store controller reference
+        self.controller = c
+        print("Toolbar: Controller reference stored")
+
         # Add tray canvas that fills x and lets us center the tray inside it
         self.tray_canvas = tk.Canvas(self.container, height=50, bg="white", highlightthickness=0)
         self.tray_canvas.pack(fill="x", pady=(0, 4))
@@ -22,9 +27,6 @@ class Toolbar:
         # Tray dimensions
         self.tray_width = 200
         self.tray_height = 36
-
-        # Store controller for tray contents
-        self.controller = c
 
         # Animation state
         self.default_color = "#3E3E3E"
@@ -44,12 +46,14 @@ class Toolbar:
         ).pack(fill="x", pady=(0, 4))
 
     def draw_tray(self, event=None):
+        print("Toolbar: Drawing tray...")
         self.tray_canvas.delete("tray")  # Clear previous drawing
 
         canvas_width = self.tray_canvas.winfo_width()
         x0 = (canvas_width - self.tray_width) // 2
         x1 = x0 + self.tray_width
 
+        # Draw the tray rectangle
         self.tray_canvas.create_rectangle(
             x0, 7, x1, 7 + self.tray_height,
             fill=self.default_color if not self.is_animating else self.flash_color,
@@ -58,13 +62,30 @@ class Toolbar:
             tags="tray"
         )
 
-        self.tray_canvas.create_text(
-            (x0 + x1) / 2, 7 + self.tray_height / 2,
-            text="Delivery Tray",
-            font=("Helvetica", 9, "bold"),
-            fill="#FFFFFF",
-            tags="tray"
-        )
+        # Get tray contents from TrayManager
+        tray_contents = self.controller.tray_manager.get_tray_contents()
+        print(f"Toolbar: Current tray contents: {tray_contents}")
+
+        if not tray_contents:
+            print("Toolbar: Tray is empty, showing 'Delivery Tray' text")
+            self.tray_canvas.create_text(
+                (x0 + x1) / 2, 7 + self.tray_height / 2,
+                text="Delivery Tray",
+                font=("Helvetica", 9, "bold"),
+                fill="#FFFFFF",
+                tags="tray"
+            )
+        else:
+            # Show item count if there are items
+            item_count = self.controller.tray_manager.get_item_count()
+            print(f"Toolbar: Tray has {item_count} items, showing count")
+            self.tray_canvas.create_text(
+                (x0 + x1) / 2, 7 + self.tray_height / 2,
+                text=f"{item_count} Item(s)",
+                font=("Helvetica", 9, "bold"),
+                fill="#FFFFFF",
+                tags="tray"
+            )
 
         # Make tray clickable
         self.tray_canvas.tag_bind("tray", "<Button-1>", lambda event: self.open_tray_window())
@@ -80,6 +101,7 @@ class Toolbar:
             if step >= flash_count * 2:
                 self.tray_canvas.itemconfig("tray", fill=self.default_color)
                 self.is_animating = False
+                self.draw_tray()  # Redraw tray to update text
                 return
             color = self.flash_color if step % 2 == 0 else self.default_color
             self.tray_canvas.itemconfig("tray", fill=color)
@@ -88,43 +110,81 @@ class Toolbar:
         flash()
 
     def open_tray_window(self):
+        print("Toolbar: Opening tray window")
         # Create a new Toplevel window
         tray_window = tk.Toplevel(self.container)
         tray_window.title("Delivery Tray Status")
-        tray_window.geometry("200x150")
+        tray_window.geometry("300x250")
         tray_window.configure(bg="white")
 
-        # Determine tray status message
-        if not self.controller.tray_contents:
-            status_message = "Tray empty"
-        else:
-            # List items in tray
-            items = [f"{item['amount']}x {item['name']}" for item in self.controller.tray_contents]
-            status_message = "Delivered:\n" + "\n".join(items)
+        # Create a frame for the content
+        content_frame = tk.Frame(tray_window, bg="white", padx=20, pady=20)
+        content_frame.pack(fill="both", expand=True)
+
+        # Get tray status from TrayManager
+        tray_contents = self.controller.tray_manager.get_tray_contents()
+        print(f"Toolbar: Tray contents for window: {tray_contents}")
+        
+        status_message, status_color = self.controller.tray_manager.format_tray_summary()
+        print(f"Toolbar: Status message: {status_message}")
 
         # Display status
-        tk.Label(
-            tray_window,
+        status_label = tk.Label(
+            content_frame,
             text=status_message,
-            font=("Helvetica", 12, "bold"),
+            font=("Helvetica", 12),
             bg="white",
-            fg="#3E3E3E",
-            justify="left"
-        ).pack(pady=20)
+            fg=status_color,
+            justify="left",
+            wraplength=260
+        )
+        status_label.pack(pady=(0, 20))
+
+        # Add collect button if there are items
+        if tray_contents:
+            print("Toolbar: Adding collect button")
+            collect_btn = tk.Button(
+                content_frame,
+                text="Collect Items",
+                command=lambda: self.collect_items(tray_window),
+                bg="#4CAF50",
+                fg="white",
+                font=("Helvetica", 11, "bold"),
+                activebackground="#45a049",
+                activeforeground="white",
+                padx=20,
+                pady=10
+            )
+            collect_btn.pack(pady=(0, 10))
 
         # Close button
-        tk.Button(
-            tray_window,
+        close_btn = tk.Button(
+            content_frame,
             text="Close",
             command=tray_window.destroy,
             bg="#8a0303",
             fg="white",
             font=("Helvetica", 10),
-            activebackground="#463A87"
-        ).pack(pady=10)
+            activebackground="#463A87",
+            padx=20,
+            pady=5
+        )
+        close_btn.pack()
 
-        # Clear tray contents after checking
-        self.controller.tray_contents = []
+        # Make window modal
+        tray_window.transient(self.container)
+        tray_window.grab_set()
+        self.container.wait_window(tray_window)
+
+    def collect_items(self, window):
+        print("Toolbar: Collecting items")
+        # Clear tray contents using TrayManager
+        self.controller.tray_manager.clear_tray()
+        # Redraw tray
+        self.draw_tray()
+        # Close window
+        window.destroy()
+        print("Toolbar: Items collected, tray cleared")
 
 productDB = TinyDB("database/product.json")
 
@@ -146,14 +206,16 @@ class Controller(tk.Tk):
         self.container = tk.Frame(self, bg="#373C40")
         self.container.pack()
 
-        self.products = []
+        # Initialize TrayManager first
+        self.tray_manager = TrayManager()
+        print("Controller: TrayManager initialized")
 
+        self.products = []
         self.selected = None
         self.amount = 0
         self.subtotal = tk.DoubleVar(self.container, 0)
         self.basket = {}
         self.state = states.CODE
-        self.tray_contents = []  # Initialize tray contents
         self.cash_window = None  # Track active cash window
 
         # Load and resize the lock.png image for chartImage
@@ -171,14 +233,13 @@ class Controller(tk.Tk):
         self.productImage = tk.PhotoImage(file="assets/icons/product.png")
 
         self.cart = tk.IntVar(self.container, 0)
-
         self.screenMessage = tk.StringVar(self.container, "")
-
         self.locked = False
 
         # Start with a welcome message
         typerwriter(self, ["Welcome!"])
 
+        # Load products
         for product in productDB.all():
             try:
                 self.products.append(
@@ -208,6 +269,7 @@ class Controller(tk.Tk):
                 except Exception as e:
                     print(f"Failed to load product {product['name']} even with default image: {e}")
 
+        # Create UI components
         self.productList = ProductList(self.container, self)
         self.productList.pack(side="left", expand=1, fill="both", padx=(0, 4))
 
@@ -219,20 +281,19 @@ class Controller(tk.Tk):
             self,
         )
         self.keypad.pack(fill="x", padx=8, pady=8)
+        
+        # Initialize toolbar last, after TrayManager is set up
         self.toolbar = Toolbar(self.display, self)
+        print("Controller: UI components initialized")
 
-    # Update subtotal
     def updateSubtotal(self, new):
         self.subtotal.set(round(self.subtotal.get() + new, 2))
 
-    # Number of the same product
     def setAmount(self, new):
         self.amount = int(new)
 
-    # Save current product choice
     def setSelected(self, new):
         self.selected = new
 
-    # Lock keypad
     def toggleLock(self, state):
         self.locked = state

@@ -1,108 +1,221 @@
-
 import tkinter as tk
-
+from tkinter import ttk
 import states as states
+from windows.payment_handler import openCurrencyWindow
 
 
-def receiptWindow(config, parent, c):
-    basket = c.basket
-    subtotal = c.subtotal.get()
-    payCashIcon = config["payCashIcon"]
+def receiptWindow(config):
+    c = config["controller"]
+    parent = config["parent"]
+    win = tk.Toplevel()
+    win.title("Receipt")
+    win.geometry("400x600")  # Increased size
+    win.configure(bg="white")
+    win.minsize(400, 500)  # Set minimum size
 
-    newWindow = tk.Toplevel(parent)
-    newWindow.title("Receipt")
-    newWindow.resizable(False, False)
-    newWindow.configure(background="white", pady=20, padx=10)
+    # Create main container with padding
+    main_container = tk.Frame(win, bg="white", padx=20, pady=20)
+    main_container.pack(fill="both", expand=True)
 
-    # Parent Frame
-    infoFrame = tk.Frame(newWindow, bg="white")
-    infoFrame.pack()
+    # Create canvas and scrollbar for vertical scrolling
+    canvas = tk.Canvas(main_container, bg="white", highlightthickness=0)
+    scrollbar = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview)
+    
+    # Create scrollable frame
+    content_frame = tk.Frame(canvas, bg="white")
+    
+    # Configure canvas
+    canvas.configure(yscrollcommand=scrollbar.set)
+    
+    # Pack canvas and scrollbar
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
 
-    # Receipt header
+    # Create window in canvas
+    canvas_window = canvas.create_window((0, 0), window=content_frame, anchor="nw", width=canvas.winfo_width())
+    
+    # Update scroll region when content changes
+    def _configure_canvas(event):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        # Update the width of the frame to match canvas
+        canvas.itemconfig(canvas_window, width=event.width)
+    
+    canvas.bind('<Configure>', _configure_canvas)
+    content_frame.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+    # Add receipt header with store info
+    header_frame = tk.Frame(content_frame, bg="white")
+    header_frame.pack(fill="x", pady=(0, 20))
+
+    # Store name
     tk.Label(
-        infoFrame, text="Vending Machine", bg="white", font=("Helvetica", 12, "bold")
+        header_frame,
+        text="Vending Machine",
+        font=("Helvetica", 20, "bold"),
+        bg="white"
     ).pack()
-    tk.Label(infoFrame, text="*" * 43, bg="white").pack()
 
-    # Table Frames
-    nameFrame = tk.Frame(infoFrame, bg="white")
-    nameFrame.pack(side="left")
-
-    priceFrame = tk.Frame(infoFrame, bg="white")
-    priceFrame.pack(side="right")
-
+    # Date and time
+    from datetime import datetime
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     tk.Label(
-        nameFrame, text="Name", bg="white", anchor="w", font=("Helvetica", 12, "bold")
-    ).pack(fill="x", expand=True)
-    tk.Label(
-        priceFrame, text="Price", bg="white", anchor="w", font=("Helvetica", 12, "bold")
-    ).pack(fill="x", expand=True)
+        header_frame,
+        text=current_time,
+        font=("Helvetica", 10),
+        bg="white",
+        fg="#666666"
+    ).pack(pady=(5, 0))
 
-    for item in basket.values():
-        # Item name
-        tk.Label(nameFrame, text=str(f"{item['name']}"), bg="white", anchor="w").pack(
-            fill="x", expand=True
-        )
-        # Item price * amount
-        amountPaid = round(item["amount"] * float(item["price"]), 2)
+    # Receipt title
+    tk.Label(
+        content_frame,
+        text="Receipt",
+        font=("Helvetica", 16, "bold"),
+        bg="white"
+    ).pack(pady=(0, 20))
+
+    # Add items to receipt with better styling
+    for item_id, item in c.basket.items():
+        item_frame = tk.Frame(content_frame, bg="white")
+        item_frame.pack(fill="x", pady=5)
+        
+        # Item name and amount
+        name_frame = tk.Frame(item_frame, bg="white")
+        name_frame.pack(side="left", fill="x", expand=True)
+        
         tk.Label(
-            priceFrame,
-            text=str(f"${amountPaid} (x{item['amount']})"),
+            name_frame,
+            text=item['name'],
+            font=("Helvetica", 11),
             bg="white",
-            anchor="w",
-        ).pack(fill="x", expand=True)
-
-        # Subtotal
-        tk.Label(nameFrame, text="Subtotal", bg="white", anchor="w").pack(
-            fill="x", expand=True, pady=(12, 0)
-        )
+            justify="left"
+        ).pack(side="left")
+        
         tk.Label(
-            priceFrame, text=str(f"${round(subtotal, 2)}"), bg="white", anchor="w"
-        ).pack(fill="x", expand=True, pady=(8, 0))
-
-        # Total
-        tk.Label(
-            nameFrame, text="Total", bg="white", anchor="w", font=("Helvetica", 12, "bold")
-        ).pack(fill="x", expand=True, pady=(12, 0))
-        tk.Label(
-            priceFrame,
-            text=str(f"LE {round(subtotal, 2)}"),
+            name_frame,
+            text=f"x{item['amount']}",
+            font=("Helvetica", 11),
             bg="white",
-            anchor="w",
-        ).pack(fill="x", expand=True, pady=(12, 0))
+            fg="#666666"
+        ).pack(side="left", padx=(5, 0))
+        
+        # Item price
+        price_frame = tk.Frame(item_frame, bg="white")
+        price_frame.pack(side="right")
+        
+        tk.Label(
+            price_frame,
+            text=f"LE {item['price'] * item['amount']:.2f}",
+            font=("Helvetica", 11),
+            bg="white",
+            justify="right"
+        ).pack(side="right")
 
+    # Add separator line
+    ttk.Separator(content_frame, orient="horizontal").pack(fill="x", pady=20)
 
-    # Pay with cash method
-    def payWithCash():
-        charge = round(subtotal, 2)
-        c.screenMessage.set(f"Enter cash manually\nLE {str(charge)}")
-        c.state = states.PAY_CASH
-        newWindow.destroy()
-        newWindow.update()
-
+    # Add total with better styling
+    total_frame = tk.Frame(content_frame, bg="white")
+    total_frame.pack(fill="x", pady=10)
+    
     tk.Label(
-        newWindow, text="Payment Method", bg="white", font="Helvetica 12 bold"
-    ).pack(fill="x", pady=(20, 0))
+        total_frame,
+        text="Total:",
+        font=("Helvetica", 14, "bold"),
+        bg="white"
+    ).pack(side="left")
+    
+    tk.Label(
+        total_frame,
+        text=f"LE {c.subtotal.get():.2f}",
+        font=("Helvetica", 14, "bold"),
+        bg="white"
+    ).pack(side="right")
 
-    # Cash payment button
-    tk.Button(
-        newWindow,
-        command=payWithCash,
-        bg="#48AD46",
-        activebackground="#5BCC58",
-        fg="#F0F0F0",
-        activeforeground="#F0F0F0",
-        text="Insert Cash Amount",
-        image=payCashIcon,
+    # Add payment method with better styling
+    payment_frame = tk.Frame(content_frame, bg="white")
+    payment_frame.pack(fill="x", pady=10)
+    
+    tk.Label(
+        payment_frame,
+        text="Payment Method:",
+        font=("Helvetica", 11),
+        bg="white",
+        fg="#666666"
+    ).pack(side="left")
+    
+    tk.Label(
+        payment_frame,
+        text="Cash",
+        font=("Helvetica", 11, "bold"),
+        bg="white"
+    ).pack(side="right")
+
+    # Add thank you message
+    tk.Label(
+        content_frame,
+        text="Thank you for your purchase!",
+        font=("Helvetica", 12),
+        bg="white",
+        fg="#666666"
+    ).pack(pady=20)
+
+    # Add buttons with better styling
+    button_frame = tk.Frame(content_frame, bg="white")
+    button_frame.pack(fill="x", pady=20)
+
+    # Pay button with hover effect
+    pay_button = tk.Button(
+        button_frame,
+        text="Pay",
+        command=lambda: handle_payment(win, c),
+        bg="#4CAF50",
+        fg="white",
         font=("Helvetica", 12, "bold"),
-        compound="left",
-        cursor="hand1",
-        bd=0,
-        relief="flat",
-        borderwidth=0,
-        pady=8,
-        padx=10,
-    ).pack(fill="x", pady=(0, 5))
+        width=15,
+        height=2,
+        cursor="hand2",
+        activebackground="#45a049",
+        activeforeground="white",
+        relief="flat"
+    )
+    pay_button.pack(side="left", padx=5, expand=True, fill="x")
 
-    newWindow.transient(parent)
-    newWindow.grab_set()
+    # Cancel button with hover effect
+    cancel_button = tk.Button(
+        button_frame,
+        text="Cancel",
+        command=win.destroy,
+        bg="#f44336",
+        fg="white",
+        font=("Helvetica", 12, "bold"),
+        width=15,
+        height=2,
+        cursor="hand2",
+        activebackground="#da190b",
+        activeforeground="white",
+        relief="flat"
+    )
+    cancel_button.pack(side="right", padx=5, expand=True, fill="x")
+
+    # Bind mousewheel to scroll
+    def _on_mousewheel(event):
+        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+    
+    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    
+    # Unbind mousewheel when widget is destroyed
+    def _on_destroy(event):
+        canvas.unbind_all("<MouseWheel>")
+    
+    win.bind("<Destroy>", _on_destroy)
+
+    # Make window modal
+    win.transient(parent)
+    win.grab_set()
+    parent.wait_window(win)
+
+def handle_payment(win, c):
+    win.destroy()
+    # Open cash window after receipt is closed
+    openCurrencyWindow(c)

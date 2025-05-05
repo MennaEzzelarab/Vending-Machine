@@ -4,7 +4,7 @@ from PIL import Image, ImageTk, ImageDraw
 
 class ProductList(tk.Frame):
     def __init__(self, parent, c):
-        tk.Frame.__init__(self, parent, bg="white", width=375, height=600)
+        tk.Frame.__init__(self, parent, bg="white", width=600, height=800)
         
         # Create top frame for refresh button
         top_frame = tk.Frame(self, bg="white")
@@ -24,7 +24,7 @@ class ProductList(tk.Frame):
         refresh_btn.pack(side="right", padx=5)
         
         # Create canvas and scrollbar
-        self.canvas = tk.Canvas(self, bg="white", width=375, height=600, highlightthickness=0)
+        self.canvas = tk.Canvas(self, bg="white", width=600, height=800, highlightthickness=0)
         self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         
         # Create scrollable frame
@@ -46,7 +46,7 @@ class ProductList(tk.Frame):
         self.controller = c
         
         # Create product grid inside scrollable frame
-        self.productGrid = tk.Frame(self.scrollable_frame, bg="white", width=375)
+        self.productGrid = tk.Frame(self.scrollable_frame, bg="white", width=600)
         self.productGrid.pack(fill="both", expand=True)
 
         # Bind mousewheel to scroll
@@ -140,7 +140,6 @@ class ProductList(tk.Frame):
                 print(f"Error displaying product {index}: {e}")
                 continue
 
-
 class ProductItem:
     def __init__(self, root, id_, name, path, quantity=0, price=0):
         self.id = id_
@@ -154,8 +153,8 @@ class ProductItem:
             img = Image.open(path).convert('RGBA')
             
             # Calculate new dimensions while maintaining aspect ratio
-            target_width = 100  # Standard width for product images
-            target_height = 100  # Standard height for product images
+            target_width = 150  # Increased from 50 to 100
+            target_height = 150  # Increased from 100 to 150
             
             # Calculate aspect ratio
             aspect_ratio = img.width / img.height
@@ -185,7 +184,7 @@ class ProductItem:
         except Exception as e:
             print(f"Error loading image {path}: {e}")
             # Create a default image if loading fails
-            default_img = Image.new('RGBA', (100, 100), (128, 128, 128, 255))
+            default_img = Image.new('RGBA', (100, 150), (128, 128, 128, 255))  # Updated default image size
             d = ImageDraw.Draw(default_img)
             d.text((10, 40), "Product", fill='white')
             self.image = ImageTk.PhotoImage(default_img)

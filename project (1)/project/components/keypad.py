@@ -107,112 +107,6 @@ def errorMessageResolver(c, message):
     if c.state == states.PAY_CASH:
         c.screenMessage.set(f"Enter cash manually\nLE {str(charge)}")
 
-def openCurrencyWindow(c):
-    # Prevent multiple windows
-    if c.cash_window is not None and c.cash_window.winfo_exists():
-        return
-
-    c.toggleLock(True)  # Lock keypad
-    win = tk.Toplevel()
-    c.cash_window = win  # Track window
-    win.title("Insert Cash")
-    win.geometry("320x400")
-    win.configure(bg="white")
-
-    inserted = tk.DoubleVar(value=0.0)
-    subtotal = c.subtotal.get()
-
-    def insert(amount):
-        current = inserted.get() + amount
-        inserted.set(current)
-        if current >= subtotal:
-            win.destroy()
-            success = finishAndPay(c, current, "cash")
-            if success:
-                # Add all items in basket to tray_contents
-                for item_id, item in c.basket.items():
-                    c.tray_contents.append({
-                        "name": item["name"],
-                        "amount": item["amount"]
-                    })
-                c.toolbar.animate_tray()  # Trigger tray animation
-                c.basket = {}  # Clear basket
-                c.subtotal.set(0)  # Reset subtotal
-                c.cart.set(0)  # Reset cart count
-                c.screenMessage.set("Enter Item Code")  # Reset display
-                c.state = states.CODE  # Reset state
-                c.toggleLock(False)  # Unlock keypad
-                c.cash_window = None  # Clear window reference
-            else:
-                threading.Thread(
-                    target=errorMessageResolver,
-                    args=(c, "Payment Failed"),
-                ).start()
-                c.toggleLock(False)
-                c.cash_window = None
-        else:
-            label.config(
-                text=f"Inserted: LE {current:.2f}\nRemaining: LE {subtotal - current:.2f}"
-            )
-
-    def on_close():
-        win.destroy()
-        c.toggleLock(False)  # Unlock keypad
-        c.cash_window = None  # Clear window reference
-        c.screenMessage.set(f"Enter cash manually\nLE {subtotal:.2f}")
-        c.state = states.PAY_CASH
-
-    # Bind window close to on_close
-    win.protocol("WM_DELETE_WINDOW", on_close)
-
-    tk.Label(
-        win,
-        text="Insert Cash",
-        font=("Helvetica", 16, "bold"),
-        bg="white"
-    ).pack(pady=10)
-
-    tk.Label(
-        win,
-        text="Simulate cash insertion",
-        font=("Helvetica", 10, "italic"),
-        bg="white",
-        fg="#555555"
-    ).pack()
-
-    label = tk.Label(
-        win,
-        text=f"Inserted: LE 0.00\nRemaining: LE {subtotal:.2f}",
-        font=("Helvetica", 12),
-        bg="white"
-    )
-    label.pack(pady=10)
-
-    # Currency buttons
-    for amount in [1, 5, 10, 20, 50, 100]:
-        tk.Button(
-            win,
-            text=f"Insert LE {amount}",
-            command=lambda amt=amount: insert(amt),
-            width=20,
-            height=2,
-            bg="#4CAF50",
-            fg="white",
-            font=("Helvetica", 10, "bold")
-        ).pack(pady=5)
-
-    # Cancel button
-    tk.Button(
-        win,
-        text="Cancel",
-        command=on_close,
-        width=20,
-        height=2,
-        bg="red",
-        fg="white",
-        font=("Helvetica", 10, "bold")
-    ).pack(pady=10)
-
 class Keypad(tk.Frame):
     def __init__(self, parent, c):
         tk.Frame.__init__(self, parent, bg="#EDEFF5")  # Smooth light gray background
@@ -361,10 +255,6 @@ class Keypad(tk.Frame):
                     ).start()
                     c.toggleLock(False)
                 c.state = states.CODE
-
-            elif c.state == states.PAY_CASH:
-                # Open the cash insertion window
-                openCurrencyWindow(c)
 
             elif c.state == states.PAYMENT:
                 print("Payment in process")
