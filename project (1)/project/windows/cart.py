@@ -40,12 +40,13 @@ def cartWindow(config):
 
     win = tk.Toplevel()
     win.title("Cart")
-    win.geometry("400x600")  # Increased size
+    win.geometry("350x700")  # Reduced width
     win.configure(bg="white")
-    win.minsize(400, 500)  # Set minimum size
+    win.minsize(350, 500)  # Reduced minimum width
+    win.resizable(True, True)  # Allow resizing
 
     # Create main container with padding
-    main_container = tk.Frame(win, bg="white", padx=20, pady=20)
+    main_container = tk.Frame(win, bg="white", padx=15, pady=20)  # Reduced padding
     main_container.pack(fill="both", expand=True)
 
     # Create canvas and scrollbar for vertical scrolling
@@ -61,7 +62,8 @@ def cartWindow(config):
     # Pack canvas and scrollbar
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
-
+    scrollbar.pack_forget()  # Hide the scrollbar
+    
     # Create window in canvas
     canvas_window = canvas.create_window((0, 0), window=content_frame, anchor="nw", width=canvas.winfo_width())
     
@@ -81,22 +83,26 @@ def cartWindow(config):
     tk.Label(
         title_frame,
         text="Your Cart",
-        font=("Helvetica", 24, "bold"),
+        font=("Helvetica", 24, "bold"),  # Slightly smaller title
         bg="white"
     ).pack()
 
     tk.Label(
         title_frame,
         text="Review your items before checkout",
-        font=("Helvetica", 12),
+        font=("Helvetica", 12),  # Slightly smaller subtitle
         bg="white",
         fg="#666666"
     ).pack(pady=(5, 0))
 
+    # Create items container
+    items_container = tk.Frame(content_frame, bg="white")
+    items_container.pack(fill="both", expand=True, pady=10)
+
     # Add items to cart with better styling
     for item_id, item in c.basket.items():
-        item_frame = tk.Frame(content_frame, bg="white")
-        item_frame.pack(fill="x", pady=5)
+        item_frame = tk.Frame(items_container, bg="white", pady=8)  # Reduced padding
+        item_frame.pack(fill="x", pady=3)  # Reduced padding
         
         # Item name and amount
         name_frame = tk.Frame(item_frame, bg="white")
@@ -105,7 +111,7 @@ def cartWindow(config):
         tk.Label(
             name_frame,
             text=item['name'],
-            font=("Helvetica", 11),
+            font=("Helvetica", 12),  # Slightly smaller font
             bg="white",
             justify="left"
         ).pack(side="left")
@@ -113,7 +119,7 @@ def cartWindow(config):
         tk.Label(
             name_frame,
             text=f"x{item['amount']}",
-            font=("Helvetica", 11),
+            font=("Helvetica", 12),  # Slightly smaller font
             bg="white",
             fg="#666666"
         ).pack(side="left", padx=(5, 0))
@@ -125,7 +131,7 @@ def cartWindow(config):
         tk.Label(
             price_frame,
             text=f"LE {item['price'] * item['amount']:.2f}",
-            font=("Helvetica", 11),
+            font=("Helvetica", 12),  # Slightly smaller font
             bg="white",
             justify="right"
         ).pack(side="right")
@@ -140,14 +146,14 @@ def cartWindow(config):
     tk.Label(
         total_frame,
         text="Total:",
-        font=("Helvetica", 14, "bold"),
+        font=("Helvetica", 14, "bold"),  # Slightly smaller font
         bg="white"
     ).pack(side="left")
     
     tk.Label(
         total_frame,
         text=f"LE {c.subtotal.get():.2f}",
-        font=("Helvetica", 14, "bold"),
+        font=("Helvetica", 14, "bold"),  # Slightly smaller font
         bg="white"
     ).pack(side="right")
 
@@ -163,31 +169,48 @@ def cartWindow(config):
         bg="#4CAF50",
         fg="white",
         font=("Helvetica", 12, "bold"),
-        width=15,
-        height=2,
         cursor="hand2",
         activebackground="#45a049",
         activeforeground="white",
-        relief="flat"
+        relief="flat",
+        padx=10,
+        pady=10
     )
-    checkout_button.pack(side="left", padx=5, expand=True, fill="x")
+    checkout_button.pack(fill="x", pady=(0, 5))
 
-    # Cancel button with hover effect
+    # Continue Shopping button with hover effect
+    continue_button = tk.Button(
+        button_frame,
+        text="Continue Shopping",
+        command=win.destroy,
+        bg="#2196F3",
+        fg="white",
+        font=("Helvetica", 12, "bold"),
+        cursor="hand2",
+        activebackground="#1976D2",
+        activeforeground="white",
+        relief="flat",
+        padx=10,
+        pady=10
+    )
+    continue_button.pack(fill="x", pady=(0, 5))
+
+    # Cancel Order button with hover effect
     cancel_button = tk.Button(
         button_frame,
-        text="Cancel",
-        command=win.destroy,
+        text="Cancel Order",
+        command=lambda: handle_cancel_order(win, c),
         bg="#f44336",
         fg="white",
         font=("Helvetica", 12, "bold"),
-        width=15,
-        height=2,
         cursor="hand2",
         activebackground="#da190b",
         activeforeground="white",
-        relief="flat"
+        relief="flat",
+        padx=10,
+        pady=10
     )
-    cancel_button.pack(side="right", padx=5, expand=True, fill="x")
+    cancel_button.pack(fill="x")
 
     # Bind mousewheel to scroll
     def _on_mousewheel(event):
@@ -210,3 +233,11 @@ def handle_checkout(win, c):
     win.destroy()
     # Open receipt window after cart is closed
     receiptWindow({"controller": c, "parent": c})
+
+def handle_cancel_order(win, c):
+    # Clear the basket
+    c.basket = {}
+    c.subtotal.set(0)
+    c.cart.set(0)
+    # Close the window
+    win.destroy()

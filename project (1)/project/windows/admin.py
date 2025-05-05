@@ -89,9 +89,10 @@ class Toolbar:
         price_entry.grid(row=1, column=1, padx=5, pady=5)
 
         # Product quantity
-        tk.Label(add_frame, text="Quantity:", bg="#ECECEC").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(add_frame, text="Quantity (max. 30):", bg="#ECECEC").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         quantity_entry = tk.Entry(add_frame, width=30)
         quantity_entry.grid(row=2, column=1, padx=5, pady=5)
+        tk.Label(add_frame, text="Maximum quantity allowed: 30 items", bg="#ECECEC", fg="#666666", font=("Arial", 8)).grid(row=2, column=2, padx=5, pady=5, sticky="w")
 
         # Image selection
         tk.Label(add_frame, text="Product Image:", bg="#ECECEC").grid(row=3, column=0, padx=5, pady=5, sticky="w")
@@ -283,10 +284,24 @@ class Toolbar:
         try:
             price = float(price)
             quantity = int(quantity)
-            if price <= 0 or quantity <= 0:
-                raise ValueError
+            
+            # Validate price
+            if price <= 0:
+                tk.messagebox.showerror("Error", "Price must be greater than zero!")
+                return
+                
+            # Validate quantity
+            if quantity < 0:
+                tk.messagebox.showerror("Error", "Quantity cannot be negative!")
+                return
+                
+            # Validate maximum quantity
+            if quantity > 30:
+                tk.messagebox.showerror("Error", f"Maximum quantity allowed is 30 items! Current quantity: {quantity}")
+                return
+                
         except ValueError:
-            tk.messagebox.showerror("Error", "Price and quantity must be positive numbers!")
+            tk.messagebox.showerror("Error", "Price and quantity must be valid numbers!")
             return
 
         # Check if product already exists

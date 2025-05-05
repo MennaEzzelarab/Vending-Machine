@@ -202,16 +202,23 @@ def productsWindow(c, parent):
                 price = float(field["price"].get())
                 name = field["name"].get()
 
-                if quantity < 0 or price < 0:
-                    popupWindow(newWindow, f"Negative values are not allowed for '{name}'. Please correct it.")
+                # Validate price
+                if price <= 0:
+                    popupWindow(newWindow, f"Price must be greater than zero for '{name}'. Please enter a positive number.")
                     return  # Stop saving
 
-                if quantity > MAX_ITEMS_PER_PRODUCT:
-                    popupWindow(newWindow, f"{name} exceeds the maximum limit of {MAX_ITEMS_PER_PRODUCT} items. Please correct it.")
+                # Validate quantity
+                if quantity < 0:
+                    popupWindow(newWindow, f"Quantity cannot be negative for '{name}'. Please enter a positive number.")
+                    return  # Stop saving
+
+                # Validate maximum quantity
+                if quantity > 30:
+                    popupWindow(newWindow, f"Maximum quantity allowed is 30 items for '{name}'. Current quantity: {quantity}")
                     return  # Stop saving
 
             except ValueError:
-                popupWindow(newWindow, f"Invalid input for '{field['name'].get()}'. Please correct it.")
+                popupWindow(newWindow, f"Invalid input for '{field['name'].get()}'. Please enter valid numbers.")
                 return  # Stop saving
 
         # If validation passed for all, save all products
