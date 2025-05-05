@@ -7,8 +7,9 @@ class PaymentWindow:
     def __init__(self, parent, product, on_payment_complete):
         self.window = tk.Toplevel(parent)
         self.window.title("Payment")
-        self.window.minsize(400, 500)
+        self.window.minsize(350, 450)
         self.window.configure(background="#ECECEC")
+        self.window.resizable(True, True)
         
         # Store references
         self.parent = parent

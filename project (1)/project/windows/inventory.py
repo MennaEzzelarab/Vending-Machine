@@ -35,6 +35,7 @@ def inventoryWindow(parent):
     newWindow = tk.Toplevel(parent)
     newWindow.title("Inventory")
     newWindow.geometry("1000x500")
+    newWindow.minsize(800, 400)
     newWindow.configure(background="white", pady=10, padx=20)
 
     # Inventory Header

@@ -107,6 +107,7 @@ class Toolbar:
         selected_image = {"path": "assets/products/default.png"}
         
         def select_image():
+            newWindow.attributes('-topmost', False)
             file_path = filedialog.askopenfilename(
                 title="Select Product Image",
                 filetypes=[
@@ -114,6 +115,7 @@ class Toolbar:
                     ("All files", "*.*")
                 ]
             )
+            newWindow.attributes('-topmost', True)
             if file_path:
                 try:
                     # Create products directory if it doesn't exist

@@ -7,9 +7,10 @@ def loginWindow(parent, c):
     newWindow.title("Admin")
     newWindow.configure(bg="#ECECEC")  # Set window bg
     width = 400
-    height = 300
+    height = 600  # Increased height
     newWindow.geometry(f"{width}x{height}")
-    newWindow.minsize(500, 500)  # Prevent window from being resized smaller
+    newWindow.minsize(400, 600)  # Increased minimum height
+    newWindow.resizable(True, True)  # Allow resizing
 
     newWindow.update_idletasks()  # Force geometry calculation
     actual_width = newWindow.winfo_width()

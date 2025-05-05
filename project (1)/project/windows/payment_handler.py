@@ -14,7 +14,8 @@ def openCurrencyWindow(c):
     win.title("Insert Cash")
     win.geometry("400x600")  # Increased size
     win.configure(bg="white")
-    win.minsize(400, 500)  # Set minimum size
+    win.minsize(350, 500)  # Set minimum size
+    win.resizable(True, True)  # Allow resizing
 
     # Create main container with padding
     main_container = tk.Frame(win, bg="white", padx=20, pady=20)

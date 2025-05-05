@@ -222,28 +222,53 @@ class Keypad(tk.Frame):
                     ).start()
 
             elif c.state == states.CONFIRM:
+                if c.amount <= 0:
+                    threading.Thread(
+                        target=errorMessageResolver,
+                        args=(c, "Invalid Amount"),
+                    ).start()
+                    c.state = states.CODE
+                    c.screenMessage.set("Enter Item Code")
+                    c.toggleLock(False)
+                    return
+                    
                 if c.selected.quantity.get() - c.amount >= 0:
                     try:
                         if c.basket[c.selected.id]:
-                            previous = (
-                                c.basket[c.selected.id]["price"]
-                                * c.basket[c.selected.id]["amount"]
-                            )
-                            c.updateSubtotal(previous * -1)
-                            c.updateSubtotal(c.selected.price.get() * c.amount)
-                            previousCart = c.basket[c.selected.id]["amount"]
-                            c.cart.set((c.cart.get() - previousCart) + c.amount)
+                            # Get the previous amount and price
+                            previous_amount = c.basket[c.selected.id]["amount"]
+                            previous_price = c.basket[c.selected.id]["price"]
+                            
+                            # Calculate new total amount
+                            new_amount = previous_amount + c.amount
+                            
+                            # Update subtotal by removing previous item total and adding new total
+                            c.updateSubtotal(previous_price * previous_amount * -1)  # Remove old total
+                            c.updateSubtotal(previous_price * new_amount)  # Add new total
+                            
+                            # Update cart count
+                            c.cart.set(c.cart.get() + c.amount)  # Just add the new amount
+                            
+                            # Update basket with new total amount
+                            c.basket[c.selected.id] = {
+                                "id": c.selected.id,
+                                "name": c.selected.name.get(),
+                                "price": c.selected.price.get(),
+                                "quantity": c.selected.quantity.get(),
+                                "amount": new_amount,
+                            }
                     except KeyError:
+                        # If item not in basket, add it normally
                         c.updateSubtotal(c.selected.price.get() * c.amount)
                         c.cart.set(c.cart.get() + c.amount)
-
-                    c.basket[c.selected.id] = {
-                        "id": c.selected.id,
-                        "name": c.selected.name.get(),
-                        "price": c.selected.price.get(),
-                        "quantity": c.selected.quantity.get(),
-                        "amount": c.amount,
-                    }
+                        c.basket[c.selected.id] = {
+                            "id": c.selected.id,
+                            "name": c.selected.name.get(),
+                            "price": c.selected.price.get(),
+                            "quantity": c.selected.quantity.get(),
+                            "amount": c.amount,
+                        }
+                    
                     c.setAmount(0)
                     cartWindow(config)
                     c.screenMessage.set("Enter Item Code")

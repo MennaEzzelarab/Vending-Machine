@@ -335,6 +335,7 @@ def changeProductsWindow(c, parent):
     newWindow = tk.Toplevel(parent)
     newWindow.title("Change Products")
     newWindow.minsize(500, 400)
+    newWindow.attributes('-topmost', True)
 
     # Example layout for managing products
     tk.Label(newWindow, text="Manage Products", font=("Arial", 16)).pack(pady=10)
