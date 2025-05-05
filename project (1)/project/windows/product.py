@@ -277,6 +277,23 @@ def productsWindow(c, parent):
     )
     refresh_button.pack(side="right", padx=(0, 10))
 
+    # Cancel Changes button
+    cancel_button = tk.Button(
+        button_frame,
+        text="Cancel Changes",
+        command=lambda: [refresh_products(), popupWindow(newWindow, "Changes have been cancelled.")],
+        bg="#f44336",
+        fg="white",
+        font=("Helvetica", 11, "bold"),
+        activebackground="#d32f2f",
+        activeforeground="white",
+        border=0,
+        cursor="hand2",
+        pady=5,
+        padx=10
+    )
+    cancel_button.pack(side="right", padx=(0, 10))
+
     def _on_mousewheel(event):
         try:
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
