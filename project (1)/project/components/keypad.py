@@ -1,5 +1,6 @@
 import threading
 import tkinter as tk
+from tkinter import ttk
 from functools import partial
 from payment import finishAndPay
 from components.display import Display
@@ -85,9 +86,9 @@ def pressKey(c, button):
 
 def getButtonColor(button):
     if button == "CLR":
-        return "#FF6B6B"  # Softer, smoother red for CLR
+        return "#FF6B6B"  # Softer red for CLR
     else:
-        return "#3A3F5E"  # Smoother blue-gray for number buttons
+        return "#3A3F5E"  # Smooth blue-gray for number buttons
 
 def getButtonHover(button):
     if button == "CLR":
@@ -106,9 +107,115 @@ def errorMessageResolver(c, message):
     if c.state == states.PAY_CASH:
         c.screenMessage.set(f"Enter cash manually\nLE {str(charge)}")
 
+def openCurrencyWindow(c):
+    # Prevent multiple windows
+    if c.cash_window is not None and c.cash_window.winfo_exists():
+        return
+
+    c.toggleLock(True)  # Lock keypad
+    win = tk.Toplevel()
+    c.cash_window = win  # Track window
+    win.title("Insert Cash")
+    win.geometry("320x400")
+    win.configure(bg="white")
+
+    inserted = tk.DoubleVar(value=0.0)
+    subtotal = c.subtotal.get()
+
+    def insert(amount):
+        current = inserted.get() + amount
+        inserted.set(current)
+        if current >= subtotal:
+            win.destroy()
+            success = finishAndPay(c, current, "cash")
+            if success:
+                # Add all items in basket to tray_contents
+                for item_id, item in c.basket.items():
+                    c.tray_contents.append({
+                        "name": item["name"],
+                        "amount": item["amount"]
+                    })
+                c.toolbar.animate_tray()  # Trigger tray animation
+                c.basket = {}  # Clear basket
+                c.subtotal.set(0)  # Reset subtotal
+                c.cart.set(0)  # Reset cart count
+                c.screenMessage.set("Enter Item Code")  # Reset display
+                c.state = states.CODE  # Reset state
+                c.toggleLock(False)  # Unlock keypad
+                c.cash_window = None  # Clear window reference
+            else:
+                threading.Thread(
+                    target=errorMessageResolver,
+                    args=(c, "Payment Failed"),
+                ).start()
+                c.toggleLock(False)
+                c.cash_window = None
+        else:
+            label.config(
+                text=f"Inserted: LE {current:.2f}\nRemaining: LE {subtotal - current:.2f}"
+            )
+
+    def on_close():
+        win.destroy()
+        c.toggleLock(False)  # Unlock keypad
+        c.cash_window = None  # Clear window reference
+        c.screenMessage.set(f"Enter cash manually\nLE {subtotal:.2f}")
+        c.state = states.PAY_CASH
+
+    # Bind window close to on_close
+    win.protocol("WM_DELETE_WINDOW", on_close)
+
+    tk.Label(
+        win,
+        text="Insert Cash",
+        font=("Helvetica", 16, "bold"),
+        bg="white"
+    ).pack(pady=10)
+
+    tk.Label(
+        win,
+        text="Simulate cash insertion",
+        font=("Helvetica", 10, "italic"),
+        bg="white",
+        fg="#555555"
+    ).pack()
+
+    label = tk.Label(
+        win,
+        text=f"Inserted: LE 0.00\nRemaining: LE {subtotal:.2f}",
+        font=("Helvetica", 12),
+        bg="white"
+    )
+    label.pack(pady=10)
+
+    # Currency buttons
+    for amount in [1, 5, 10, 20, 50, 100]:
+        tk.Button(
+            win,
+            text=f"Insert LE {amount}",
+            command=lambda amt=amount: insert(amt),
+            width=20,
+            height=2,
+            bg="#4CAF50",
+            fg="white",
+            font=("Helvetica", 10, "bold")
+        ).pack(pady=5)
+
+    # Cancel button
+    tk.Button(
+        win,
+        text="Cancel",
+        command=on_close,
+        width=20,
+        height=2,
+        bg="red",
+        fg="white",
+        font=("Helvetica", 10, "bold")
+    ).pack(pady=10)
+
 class Keypad(tk.Frame):
     def __init__(self, parent, c):
-        tk.Frame.__init__(self, parent, bg="#EDEFF5")  # Smoother light gray background
+        tk.Frame.__init__(self, parent, bg="#EDEFF5")  # Smooth light gray background
         self.code = ""
         self.buttons = [
             ["1", "2", "3"],
@@ -117,6 +224,48 @@ class Keypad(tk.Frame):
             [".", "0", "CLR"],
         ]
         self.products = c.products
+
+        # Configure ttk style for rounded buttons
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure(
+            "Keypad.TButton",
+            font=("Helvetica", 14, "bold"),
+            foreground="#FFFFFF",
+            background="#3A3F5E",
+            padding=8,
+            relief="flat",
+            borderwidth=0,
+        )
+        style.map(
+            "Keypad.TButton",
+            background=[("active", "#565B7F")],
+            foreground=[("active", "#FFFFFF")]
+        )
+        style.configure(
+            "Clear.TButton",
+            background="#FF6B6B",
+            foreground="#FFFFFF",
+        )
+        style.map(
+            "Clear.TButton",
+            background=[("active", "#FF8787")],
+            foreground=[("active", "#FFFFFF")]
+        )
+        style.configure(
+            "Next.TButton",
+            font=("Helvetica", 12, "bold"),
+            foreground="#FFFFFF",
+            background="#1A73E8",
+            padding=8,
+            relief="flat",
+            borderwidth=0,
+        )
+        style.map(
+            "Next.TButton",
+            background=[("active", "#1557B0")],
+            foreground=[("active", "#FFFFFF")]
+        )
 
         # Display with vertical padding
         Display(self, c).pack(fill="x", pady=10)
@@ -214,60 +363,32 @@ class Keypad(tk.Frame):
                 c.state = states.CODE
 
             elif c.state == states.PAY_CASH:
-                c.toggleLock(True)
-                cash = c.screenMessage.get()
-                try:
-                    cash_amount = float(cash)
-                    if cash_amount < c.subtotal.get():
-                        raise ValueError("Insufficient cash amount")
-                    success = finishAndPay(c, cash_amount, "cash")
-                    if not success:
-                        raise Exception("Invalid cash")
-                except Exception as e:
-                    print(f"Error: {e}")
-                    threading.Thread(
-                        target=errorMessageResolver,
-                        args=(c, "Invalid Cash"),
-                    ).start()
+                # Open the cash insertion window
+                openCurrencyWindow(c)
+
             elif c.state == states.PAYMENT:
                 print("Payment in process")
 
-        # Create smaller, smoother keypad buttons
+        # Create smaller, rounded keypad buttons closer together
         for row in range(len(self.buttons)):
             for col in range(3):
                 button = self.buttons[row][col]
-                tk.Button(
+                ttk.Button(
                     self.calculatorGrid,
                     command=partial(pressKey, c, button),
-                    bg=getButtonColor(button),
-                    fg="#FFFFFF",
-                    font=("Helvetica", 14, "bold"),  # Sleeker, smaller font
-                    activebackground=getButtonHover(button),
-                    activeforeground="#FFFFFF",
-                    state="disabled" if button == "" else "normal",
-                    width=3,  # Smaller width
-                    height=1,  # Smaller height
                     text=button,
+                    style="Clear.TButton" if button == "CLR" else "Keypad.TButton",
+                    state="disabled" if button == "" else "normal",
                     cursor="arrow" if button == "" else "hand2",
-                    padx=8,  # Reduced padding
-                    pady=8,
-                    relief="flat",
-                    borderwidth=1,  # Subtle border for smoothness
-                ).grid(row=row, column=col, sticky="news", padx=6, pady=6)  # Tighter grid spacing
+                    width=3,
+                ).grid(row=row, column=col, sticky="news", padx=4, pady=4)  # Closer spacing
 
-        # Next button with smooth, slightly smaller styling
-        self.calculator_button = tk.Button(
+        # Next button with rounded, smooth styling
+        self.calculator_button = ttk.Button(
             self,
             cursor="hand2",
             command=partial(onSubmit, c),
-            bg="#1A73E8",  # Smoother blue
-            font=("Helvetica", 12, "bold"),  # Sleeker, smaller font
-            activebackground="#1557B0",  # Smoother hover
-            activeforeground="#FFFFFF",
             text="Next",
-            height=1,  # Smaller height
-            fg="#FFFFFF",
-            relief="flat",
-            borderwidth=1,
+            style="Next.TButton",
         )
-        self.calculator_button.pack(fill="x", pady=12, padx=8)  # Slightly reduced padding
+        self.calculator_button.pack(fill="x", pady=10, padx=8)  # Adjusted padding

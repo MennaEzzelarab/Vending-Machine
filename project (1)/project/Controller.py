@@ -23,8 +23,13 @@ class Toolbar:
         self.tray_width = 200
         self.tray_height = 36
 
-        # Store controller for tray status
+        # Store controller for tray contents
         self.controller = c
+
+        # Animation state
+        self.default_color = "#3E3E3E"
+        self.flash_color = "#00FF00"
+        self.is_animating = False
 
         # Delay drawing until layout is finalized
         self.tray_canvas.bind("<Configure>", self.draw_tray)
@@ -47,7 +52,7 @@ class Toolbar:
 
         self.tray_canvas.create_rectangle(
             x0, 7, x1, 7 + self.tray_height,
-            fill="#3E3E3E",
+            fill=self.default_color if not self.is_animating else self.flash_color,
             outline="#C0C0C0",
             width=2,
             tags="tray"
@@ -64,6 +69,24 @@ class Toolbar:
         # Make tray clickable
         self.tray_canvas.tag_bind("tray", "<Button-1>", lambda event: self.open_tray_window())
 
+    def animate_tray(self):
+        if self.is_animating:
+            return  # Prevent overlapping animations
+        self.is_animating = True
+        flash_count = 3
+        flash_duration = 200  # ms
+
+        def flash(step=0):
+            if step >= flash_count * 2:
+                self.tray_canvas.itemconfig("tray", fill=self.default_color)
+                self.is_animating = False
+                return
+            color = self.flash_color if step % 2 == 0 else self.default_color
+            self.tray_canvas.itemconfig("tray", fill=color)
+            self.tray_canvas.after(flash_duration, flash, step + 1)
+
+        flash()
+
     def open_tray_window(self):
         # Create a new Toplevel window
         tray_window = tk.Toplevel(self.container)
@@ -72,7 +95,12 @@ class Toolbar:
         tray_window.configure(bg="white")
 
         # Determine tray status message
-        status_message = "Tray empty" if self.controller.tray_status == "empty" else "Item delivered!"
+        if not self.controller.tray_contents:
+            status_message = "Tray empty"
+        else:
+            # List items in tray
+            items = [f"{item['amount']}x {item['name']}" for item in self.controller.tray_contents]
+            status_message = "Delivered:\n" + "\n".join(items)
 
         # Display status
         tk.Label(
@@ -80,7 +108,8 @@ class Toolbar:
             text=status_message,
             font=("Helvetica", 12, "bold"),
             bg="white",
-            fg="#3E3E3E"
+            fg="#3E3E3E",
+            justify="left"
         ).pack(pady=20)
 
         # Close button
@@ -94,9 +123,8 @@ class Toolbar:
             activebackground="#463A87"
         ).pack(pady=10)
 
-        # Reset tray status to empty after checking
-        if self.controller.tray_status == "delivered":
-            self.controller.tray_status = "empty"
+        # Clear tray contents after checking
+        self.controller.tray_contents = []
 
 productDB = TinyDB("database/product.json")
 
@@ -125,7 +153,8 @@ class Controller(tk.Tk):
         self.subtotal = tk.DoubleVar(self.container, 0)
         self.basket = {}
         self.state = states.CODE
-        self.tray_status = "empty"  # Initialize tray status
+        self.tray_contents = []  # Initialize tray contents
+        self.cash_window = None  # Track active cash window
 
         # Load and resize the lock.png image for chartImage
         icon_size = (24, 24)  # Desired size for the icon
@@ -140,7 +169,6 @@ class Controller(tk.Tk):
         # Load other images without resizing
         self.coin = tk.PhotoImage(file="assets/icons/coin.png")
         self.productImage = tk.PhotoImage(file="assets/icons/product.png")
-        self.inventory = tk.PhotoImage(file="assets/icons/chart.png")
 
         self.cart = tk.IntVar(self.container, 0)
 
